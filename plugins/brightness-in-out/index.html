@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="disguise-plugin-window-size" content="300,210" />
+    <meta name="disguise-plugin-window-min-size" content="260,190" />
+    <meta name="disguise-plugin-window-resizable" content="true" />
+    <title>Brightness In / Out</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #111214;
+        color: #d9dcdf;
+      }
+
+      * { box-sizing: border-box; }
+
+      body { margin: 0; min-width: 260px; }
+
+      main { padding: 10px; }
+
+      .panel {
+        padding: 9px;
+        border: 1px solid #303338;
+        border-radius: 7px;
+        background: #1b1d20;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        color: #bfc3c7;
+        font-size: 12px;
+      }
+
+      input, select {
+        width: 100%;
+        height: 29px;
+        padding: 0 7px;
+        border: 1px solid #3b3f44;
+        border-radius: 4px;
+        outline: none;
+        background: #121416;
+        color: #e2e4e6;
+        font-size: 12px;
+      }
+
+      input:focus, select:focus { border-color: #2f9fea; }
+      .wide { grid-column: 1 / -1; }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 7px;
+        margin-top: 9px;
+      }
+
+      button {
+        min-height: 32px;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:disabled { opacity: .5; cursor: wait; }
+      .fade-in { background: #218448; }
+      .fade-in:hover:not(:disabled) { background: #279c55; }
+      .fade-out { background: #a73c3c; }
+      .fade-out:hover:not(:disabled) { background: #c04747; }
+
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <div class="grid">
+          <label class="wide">
+            Automation placement
+            <select id="placement">
+              <option value="edges">Clip edges</option>
+              <option value="playhead">At playhead</option>
+            </select>
+          </label>
+          <label>
+            In duration, sec
+            <input id="inDuration" type="number" min="0.1" max="3600" step="0.1" value="2" />
+          </label>
+          <label>
+            Out duration, sec
+            <input id="outDuration" type="number" min="0.1" max="3600" step="0.1" value="2" />
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="fadeIn" class="fade-in" type="button">In</button>
+          <button id="fadeOut" class="fade-out" type="button">Out</button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <script>
+      const ids = ['placement', 'inDuration', 'outDuration'];
+      const fields = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+      const fadeInButton = document.getElementById('fadeIn');
+      const fadeOutButton = document.getElementById('fadeOut');
+
+      const query = new URLSearchParams(window.location.search);
+      const rawDirector = query.get('director') || 'localhost:80';
+      const director = rawDirector.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+
+      function restoreSettings() {
+        ids.forEach((id) => {
+          const saved = localStorage.getItem(`brightness-fader:${id}`);
+          if (saved !== null) fields[id].value = saved;
+          fields[id].addEventListener('change', () => {
+            localStorage.setItem(`brightness-fader:${id}`, fields[id].value);
+          });
+        });
+      }
+
+      function numberInRange(field, label, min, max) {
+        const value = Number(field.value);
+        if (!Number.isFinite(value) || value < min || value > max) {
+          throw new Error(`${label} must be between ${min} and ${max}.`);
+        }
+        return value;
+      }
+
+      function buildScript(duration, fromValue, toValue, direction, placement) {
+        return [
+          'track = guisystem.track',
+          'selected = list(guisystem.selectedLayers)',
+          'if not selected:',
+          '    raise RuntimeError("Select one or more clips in the timeline")',
+          'playhead_seconds = trackTime()',
+          'playhead_beat = track.timeToBeat(playhead_seconds)',
+          `duration = ${duration}`,
+          `from_value = ${fromValue}`,
+          `to_value = ${toValue}`,
+          `direction = ${JSON.stringify(direction)}`,
+          `placement = ${JSON.stringify(placement)}`,
+          'changed = []',
+          'skipped = []',
+          'for layer in selected:',
+          '    sequence = layer.findSequence("brightness")',
+          '    if sequence is None:',
+          '        skipped.append(layer.name)',
+          '        continue',
+          '    if placement == "edges":',
+          '        if direction == "In":',
+          '            start_beat = layer.tStart',
+          '            start_seconds = track.beatToTime(start_beat)',
+          '            end_beat = min(layer.tEnd, track.timeToBeat(start_seconds + duration))',
+          '        else:',
+          '            end_beat = layer.tEnd',
+          '            end_seconds = track.beatToTime(end_beat)',
+          '            start_beat = max(layer.tStart, track.timeToBeat(end_seconds - duration))',
+          '    else:',
+          '        if playhead_beat < layer.tStart or playhead_beat > layer.tEnd:',
+          '            skipped.append(layer.name)',
+          '            continue',
+          '        if direction == "In":',
+          '            end_beat = playhead_beat',
+          '            start_beat = max(layer.tStart, track.timeToBeat(playhead_seconds - duration))',
+          '        else:',
+          '            start_beat = playhead_beat',
+          '            end_beat = min(layer.tEnd, track.timeToBeat(playhead_seconds + duration))',
+          '    if end_beat <= start_beat:',
+          '        skipped.append(layer.name)',
+          '        continue',
+          '    sequence.disableSequencing = False',
+          '    keys = sequence.sequence',
+          '    for index in range(keys.nKeys() - 1, -1, -1):',
+          '        key_time = keys.t(index)',
+          '        if key_time > start_beat and key_time < end_beat:',
+          '            keys.remove(index, 1)',
+          '    keys.setFloat(start_beat, from_value)',
+          '    keys.setFloat(end_beat, to_value)',
+          '    for index in range(keys.nKeys()):',
+          '        key_time = keys.t(index)',
+          '        if key_time >= start_beat and key_time <= end_beat:',
+          '            keys.key(index).interpolation = Key.cubic',
+          '    layer.notifyEdit(sequence)',
+          '    changed.append(layer.name)',
+          'if not changed:',
+          '    raise RuntimeError("No selected clip could be changed; check playhead position and Brightness availability")',
+          'return {"changed": changed, "skipped": skipped, "duration": duration, "direction": direction, "placement": placement}'
+        ].join('\n');
+      }
+
+      function setBusy(busy) {
+        fadeInButton.disabled = busy;
+        fadeOutButton.disabled = busy;
+      }
+
+      async function createFade(direction) {
+        try {
+          const inDuration = numberInRange(fields.inDuration, 'In duration', 0.1, 3600);
+          const outDuration = numberInRange(fields.outDuration, 'Out duration', 0.1, 3600);
+          const placement = fields.placement.value;
+
+          const isIn = direction === 'In';
+          const duration = isIn ? inDuration : outDuration;
+          const fromValue = isIn ? 0 : 1;
+          const toValue = isIn ? 1 : 0;
+          const script = buildScript(duration, fromValue, toValue, direction, placement);
+
+          setBusy(true);
+
+          const response = await fetch(`http://${director}/api/session/python/execute`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ script })
+          });
+          const payload = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(`Designer returned HTTP ${response.status}.`);
+          if (!payload) throw new Error('Designer returned an empty or invalid response.');
+
+          const code = payload.status && payload.status.code;
+          if (typeof code === 'number' && code !== 0) {
+            const message = payload.status.message || payload.pythonLog || 'Python execution failed.';
+            throw new Error(message);
+          }
+
+        } catch (error) {
+          console.error(error);
+          window.alert(`Brightness ${direction}: ${error.message}`);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      fadeInButton.addEventListener('click', () => createFade('In'));
+      fadeOutButton.addEventListener('click', () => createFade('Out'));
+      restoreSettings();
+    </script>
+  </body>
+</html>
