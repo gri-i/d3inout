@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-09-24
 
 - Redraw the interface in the style of native Designer widgets: property rows,
   collapsible section, flat In/Out actions.
