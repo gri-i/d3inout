@@ -3,113 +3,70 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="disguise-plugin-window-size" content="300,210" />
-    <meta name="disguise-plugin-window-min-size" content="260,190" />
+    <meta name="disguise-plugin-window-size" content="300,170" />
+    <meta name="disguise-plugin-window-min-size" content="240,150" />
     <meta name="disguise-plugin-window-resizable" content="true" />
     <title>Brightness In / Out</title>
+    <link rel="stylesheet" href="disguise-ui.css" />
     <style>
-      :root {
-        color-scheme: dark;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #111214;
-        color: #d9dcdf;
-      }
-
       * { box-sizing: border-box; }
+      body { min-width: 240px; }
 
-      body { margin: 0; min-width: 260px; }
-
-      main { padding: 10px; }
-
-      .panel {
-        padding: 9px;
-        border: 1px solid #303338;
-        border-radius: 7px;
-        background: #1b1d20;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 7px;
-      }
-
-      label {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        color: #bfc3c7;
-        font-size: 12px;
-      }
-
-      input, select {
-        width: 100%;
-        height: 29px;
-        padding: 0 7px;
-        border: 1px solid #3b3f44;
-        border-radius: 4px;
-        outline: none;
-        background: #121416;
-        color: #e2e4e6;
-        font-size: 12px;
-      }
-
-      input:focus, select:focus { border-color: #2f9fea; }
-      .wide { grid-column: 1 / -1; }
-
-      .actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 7px;
-        margin-top: 9px;
-      }
-
-      button {
-        min-height: 32px;
-        border: 1px solid transparent;
-        border-radius: 5px;
-        color: white;
-        font-weight: 600;
+      select.d3-value {
+        appearance: none;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        font: inherit;
+        text-align: right;
+        text-align-last: right;
         cursor: pointer;
       }
+      select.d3-value option { background: var(--d3-panel); color: var(--d3-text); }
+      select.d3-value:focus { outline: 1px solid var(--d3-label); }
+      .d3-field { width: 4.5em; }
 
-      button:disabled { opacity: .5; cursor: wait; }
-      .fade-in { background: #218448; }
-      .fade-in:hover:not(:disabled) { background: #279c55; }
-      .fade-out { background: #a73c3c; }
-      .fade-out:hover:not(:disabled) { background: #c04747; }
+      .actions { display: grid; grid-template-columns: 1fr 1fr; }
+      .actions .d3-action {
+        border: 0;
+        border-top: 2px solid var(--d3-divider);
+        background: transparent;
+        color: var(--d3-text);
+        font: inherit;
+        white-space: nowrap;
+      }
+      .actions .d3-action + .d3-action { border-left: 2px solid var(--d3-divider); }
+      .actions .d3-action:disabled { color: var(--d3-label); cursor: wait; background: transparent; }
 
+      #status { margin-top: 0; }
     </style>
   </head>
-  <body>
-    <main>
-      <section class="panel">
-        <div class="grid">
-          <label class="wide">
-            Automation placement
-            <select id="placement">
-              <option value="edges">Clip edges</option>
-              <option value="playhead">At playhead</option>
-            </select>
-          </label>
-          <label>
-            In duration, sec
-            <input id="inDuration" type="number" min="0.1" max="3600" step="0.1" value="2" />
-          </label>
-          <label>
-            Out duration, sec
-            <input id="outDuration" type="number" min="0.1" max="3600" step="0.1" value="2" />
-          </label>
-        </div>
+  <body class="d3-app d3-embedded">
+    <div class="d3-section">Brightness fade</div>
+    <div class="d3-section-body">
+      <label class="d3-row">
+        <span class="d3-label nw">Placement</span>
+        <select id="placement" class="d3-value">
+          <option value="edges">Clip edges</option>
+          <option value="playhead">At playhead</option>
+        </select>
+      </label>
+      <label class="d3-row">
+        <span class="d3-label nw">In duration (s)</span>
+        <input id="inDuration" class="d3-field" type="number" min="0.1" max="3600" step="0.1" value="2" />
+      </label>
+      <label class="d3-row">
+        <span class="d3-label nw">Out duration (s)</span>
+        <input id="outDuration" class="d3-field" type="number" min="0.1" max="3600" step="0.1" value="2" />
+      </label>
+    </div>
 
-        <div class="actions">
-          <button id="fadeIn" class="fade-in" type="button">In</button>
-          <button id="fadeOut" class="fade-out" type="button">Out</button>
-        </div>
+    <div class="actions">
+      <button id="fadeIn" class="d3-action" type="button">In</button>
+      <button id="fadeOut" class="d3-action" type="button">Out</button>
+    </div>
 
-      </section>
-
-    </main>
+    <div id="status" class="d3-status">Select layers, then press In or Out</div>
 
     <script>
       const ids = ['placement', 'inDuration', 'outDuration'];
@@ -201,6 +158,26 @@
         ].join('\n');
       }
 
+      const statusBar = document.getElementById('status');
+
+      function showStatus(text, state) {
+        statusBar.textContent = text;
+        statusBar.className = state ? `d3-status ${state}` : 'd3-status';
+      }
+
+      function resultSummary(payload, direction) {
+        let result = payload.returnValue ?? payload.result;
+        if (typeof result === 'string') {
+          try { result = JSON.parse(result.replace(/'/g, '"')); } catch { result = null; }
+        }
+        if (!result || !Array.isArray(result.changed)) return `Brightness ${direction} applied`;
+        const count = result.changed.length;
+        const skipped = Array.isArray(result.skipped) ? result.skipped.length : 0;
+        let text = `${direction}: ${count} layer${count === 1 ? '' : 's'} changed`;
+        if (skipped) text += `, ${skipped} skipped`;
+        return text;
+      }
+
       function setBusy(busy) {
         fadeInButton.disabled = busy;
         fadeOutButton.disabled = busy;
@@ -219,6 +196,7 @@
           const script = buildScript(duration, fromValue, toValue, direction, placement);
 
           setBusy(true);
+          showStatus(`Applying ${direction}…`);
 
           const response = await fetch(`http://${director}/api/session/python/execute`, {
             method: 'POST',
@@ -235,9 +213,11 @@
             throw new Error(message);
           }
 
+          const summary = resultSummary(payload, direction);
+          showStatus(summary, summary.includes('skipped') ? 'warn' : 'ok');
         } catch (error) {
           console.error(error);
-          window.alert(`Brightness ${direction}: ${error.message}`);
+          showStatus(`Brightness ${direction}: ${error.message}`, 'bad');
         } finally {
           setBusy(false);
         }
@@ -245,6 +225,8 @@
 
       fadeInButton.addEventListener('click', () => createFade('In'));
       fadeOutButton.addEventListener('click', () => createFade('Out'));
+      document.querySelectorAll('.d3-section').forEach((header) =>
+        header.addEventListener('click', () => header.classList.toggle('collapsed')));
       restoreSettings();
     </script>
   </body>

@@ -38,7 +38,8 @@
 2. Распакуйте архив в корневой каталог d3-проекта, открытого в Designer.
 3. Убедитесь, что итоговая
    структура должна быть без дополнительного вложенного каталога:
-   `{project_root}/plugins/brightness-in-out/index.html` и
+   `{project_root}/plugins/brightness-in-out/index.html`,
+   `{project_root}/plugins/brightness-in-out/disguise-ui.css` и
    `{project_root}/plugins/brightness-in-out/d3plugin.json`.
 4. Закройте окно Plugin Launcher и откройте его снова. Если
    плитка не появилась, перезапустите Designer с этим проектом.
@@ -72,6 +73,7 @@
 ## Структура репозитория
 
 - `plugins/brightness-in-out/index.html` — интерфейс и логика плагина;
+- `plugins/brightness-in-out/disguise-ui.css` — стили в духе виджетов Designer;
 - `plugins/brightness-in-out/d3plugin.json` — метаданные для Plugin Launcher;
 - `brightness-in-out-plugin.zip` — готовый установочный архив;
 - `CHANGELOG.md` — история публичных версий.
