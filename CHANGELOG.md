@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fade the Volume of audio layers (layers without Brightness).
+- Rename the plugin to "In Out": folder `plugins/in-out`, archive
+  `in-out-plugin.zip`.
+- Show Designer's own error message instead of a bare HTTP status.
+
 ## 1.1.0 — 2026-09-24
 
 - Redraw the interface in the style of native Designer widgets: property rows,

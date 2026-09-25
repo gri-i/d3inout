@@ -6,7 +6,7 @@
     <meta name="disguise-plugin-window-size" content="300,170" />
     <meta name="disguise-plugin-window-min-size" content="240,150" />
     <meta name="disguise-plugin-window-resizable" content="true" />
-    <title>Brightness In / Out</title>
+    <title>In / Out</title>
     <link rel="stylesheet" href="disguise-ui.css" />
     <style>
       * { box-sizing: border-box; }
@@ -42,7 +42,7 @@
     </style>
   </head>
   <body class="d3-app d3-embedded">
-    <div class="d3-section">Brightness fade</div>
+    <div class="d3-section">Fade</div>
     <div class="d3-section-body">
       <label class="d3-row">
         <span class="d3-label nw">Placement</span>
@@ -80,10 +80,10 @@
 
       function restoreSettings() {
         ids.forEach((id) => {
-          const saved = localStorage.getItem(`brightness-fader:${id}`);
+          const saved = localStorage.getItem(`in-out:${id}`);
           if (saved !== null) fields[id].value = saved;
           fields[id].addEventListener('change', () => {
-            localStorage.setItem(`brightness-fader:${id}`, fields[id].value);
+            localStorage.setItem(`in-out:${id}`, fields[id].value);
           });
         });
       }
@@ -112,7 +112,11 @@
           'changed = []',
           'skipped = []',
           'for layer in selected:',
-          '    sequence = layer.findSequence("brightness")',
+          '    sequence = None',
+          '    for field_name in ("brightness", "volume"):',
+          '        sequence = layer.findSequence(field_name)',
+          '        if sequence is not None:',
+          '            break',
           '    if sequence is None:',
           '        skipped.append(layer.name)',
           '        continue',
@@ -153,7 +157,7 @@
           '    layer.notifyEdit(sequence)',
           '    changed.append(layer.name)',
           'if not changed:',
-          '    raise RuntimeError("No selected clip could be changed; check playhead position and Brightness availability")',
+          '    raise RuntimeError("No selected clip could be changed; check playhead position and Brightness/Volume availability")',
           'return {"changed": changed, "skipped": skipped, "duration": duration, "direction": direction, "placement": placement}'
         ].join('\n');
       }
@@ -170,12 +174,25 @@
         if (typeof result === 'string') {
           try { result = JSON.parse(result.replace(/'/g, '"')); } catch { result = null; }
         }
-        if (!result || !Array.isArray(result.changed)) return `Brightness ${direction} applied`;
+        if (!result || !Array.isArray(result.changed)) return `${direction} applied`;
         const count = result.changed.length;
         const skipped = Array.isArray(result.skipped) ? result.skipped.length : 0;
         let text = `${direction}: ${count} layer${count === 1 ? '' : 's'} changed`;
         if (skipped) text += `, ${skipped} skipped`;
         return text;
+      }
+
+      // The error body carries the real reason (Python exception or traceback).
+      function designerError(payload) {
+        if (!payload) return '';
+        const status = payload.status || {};
+        const details = Array.isArray(status.details)
+          ? status.details.map((d) => (typeof d === 'string' ? d : d && d.message)).filter(Boolean)
+          : [];
+        const parts = [status.message, ...details].filter(Boolean);
+        if (parts.length) return parts.join(' — ');
+        const log = String(payload.pythonLog || '').trim().split('\n').filter(Boolean);
+        return log.length ? log[log.length - 1] : '';
       }
 
       function setBusy(busy) {
@@ -204,20 +221,17 @@
             body: JSON.stringify({ script })
           });
           const payload = await response.json().catch(() => null);
-          if (!response.ok) throw new Error(`Designer returned HTTP ${response.status}.`);
-          if (!payload) throw new Error('Designer returned an empty or invalid response.');
-
-          const code = payload.status && payload.status.code;
-          if (typeof code === 'number' && code !== 0) {
-            const message = payload.status.message || payload.pythonLog || 'Python execution failed.';
-            throw new Error(message);
+          const code = payload && payload.status && payload.status.code;
+          if (!response.ok || (typeof code === 'number' && code !== 0)) {
+            throw new Error(designerError(payload) || `Designer returned HTTP ${response.status}.`);
           }
+          if (!payload) throw new Error('Designer returned an empty or invalid response.');
 
           const summary = resultSummary(payload, direction);
           showStatus(summary, summary.includes('skipped') ? 'warn' : 'ok');
         } catch (error) {
           console.error(error);
-          showStatus(`Brightness ${direction}: ${error.message}`, 'bad');
+          showStatus(`${direction}: ${error.message}`, 'bad');
         } finally {
           setBusy(false);
         }
