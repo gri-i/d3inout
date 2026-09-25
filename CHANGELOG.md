@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — 2026-09-25
 
 - Fade the Volume of audio layers (layers without Brightness).
 - Rename the plugin to "In Out": folder `plugins/in-out`, archive
