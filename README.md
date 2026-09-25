@@ -37,13 +37,13 @@ layer), используется sequence `volume`.
 
 ## Установка
 
-1. Скачайте `in-out-plugin.zip` из последнего GitHub Release.
+1. Скачайте `d3-in-out-plugin.zip` из последнего GitHub Release.
 2. Распакуйте архив в корневой каталог d3-проекта, открытого в Designer.
 3. Убедитесь, что итоговая
    структура должна быть без дополнительного вложенного каталога:
-   `{project_root}/plugins/in-out/index.html`,
-   `{project_root}/plugins/in-out/disguise-ui.css` и
-   `{project_root}/plugins/in-out/d3plugin.json`.
+   `{project_root}/plugins/d3-in-out/index.html`,
+   `{project_root}/plugins/d3-in-out/disguise-ui.css` и
+   `{project_root}/plugins/d3-in-out/d3plugin.json`.
 4. Закройте окно Plugin Launcher и откройте его снова. Если
    плитка не появилась, перезапустите Designer с этим проектом.
 5. В Plugin Launcher выберите **In Out**.
@@ -75,10 +75,10 @@ layer), используется sequence `volume`.
 
 ## Структура репозитория
 
-- `plugins/in-out/index.html` — интерфейс и логика плагина;
-- `plugins/in-out/disguise-ui.css` — стили в духе виджетов Designer;
-- `plugins/in-out/d3plugin.json` — метаданные для Plugin Launcher;
-- `in-out-plugin.zip` — готовый установочный архив;
+- `plugins/d3-in-out/index.html` — интерфейс и логика плагина;
+- `plugins/d3-in-out/disguise-ui.css` — стили в духе виджетов Designer;
+- `plugins/d3-in-out/d3plugin.json` — метаданные для Plugin Launcher;
+- `d3-in-out-plugin.zip` — готовый установочный архив;
 - `CHANGELOG.md` — история публичных версий.
 
 ## Лицензия

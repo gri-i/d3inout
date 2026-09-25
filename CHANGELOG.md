@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0 — 2026-09-25
+
+- Rename the plugin folder to `plugins/d3-in-out` and the archive to
+  `d3-in-out-plugin.zip`.
+
 ## 1.2.0 — 2026-09-25
 
 - Fade the Volume of audio layers (layers without Brightness).
